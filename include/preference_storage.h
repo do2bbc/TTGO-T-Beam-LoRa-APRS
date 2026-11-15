@@ -24,6 +24,12 @@ static const char *const PREF_TNCSERVER_ENABLE_INIT = "tncsrvr_en_i";
 static const char *const PREF_TNCSERVER_ENABLE = "tncsrvr_en";
 static const char *const PREF_GPSSERVER_ENABLE_INIT = "gpssrv_en_i";
 static const char *const PREF_GPSSERVER_ENABLE = "gpssrv_en";
+static const char *const PREF_DXLAPRS_AXUDP_ENABLE_INIT = "dxl_axudp_i";
+static const char *const PREF_DXLAPRS_AXUDP_ENABLE = "dxl_axudp";
+static const char *const PREF_DXLAPRS_AXUDP_HOST_INIT = "dxl_axudp_h_i";
+static const char *const PREF_DXLAPRS_AXUDP_HOST = "dxl_axudp_host";
+static const char *const PREF_DXLAPRS_AXUDP_PORT_INIT = "dxl_axudp_p_i";
+static const char *const PREF_DXLAPRS_AXUDP_PORT = "dxl_axudp_port";
 
 
 // LoRa settings

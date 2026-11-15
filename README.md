@@ -32,7 +32,7 @@ After connection with APRX based DIGI it can be used as KISS-TNC
 * without valid GPS-FIX, immediate sending of the frame with the position saved in the configuration
 
 ### long press while booting 
-* reset to factory default
+* reset to factory default (disabled in the `ttgo-t-beam-v1_2` build because GPIO38 reads low while idle on the tested board)
 
 ### long press: toggle on or off GPS power supply 
 * if the "FIXED_BEACON_EN" option is enabled in the configuration, a beacon will be sent every set time interval
@@ -82,6 +82,14 @@ a user succeeded this way with his new heltec wireless tracker:
 * Open "PlatformIO" and click on "Import Arduino Project"
 * In the top part of the window choose youy board then browse to cloned repo and click "import"
 * In the left column click on the ANT-shaped icon, choose your board and click on "Upload". COM port should be detected automatically Wait for procedure to finish and keep reading
+
+## Direct dxlAPRS AXUDP v2 output
+
+The firmware can send received LoRa APRS frames directly to a dxlAPRS AXUDP v2 UDP listener; Dire Wolf is not required in this path. Enable **DXLAPRS AXUDP v2** in the web configuration and set the target host and UDP port. The defaults are `nas.lan:9103`, with output disabled until explicitly enabled.
+
+The AXUDP v2 `V` report contains the LoRa RSSI in dBm, and `S` contains the LoRa SNR in dB. The packet carries the AX.25 frame and the dxlAPRS-compatible CRC. The ESP32 must be connected to the same IP network as the configured listener.
+
+The `ttgo-t-beam-v1_2` build omits optional Bluetooth and Syslog support to fit the existing 0x1C0000-byte app partitions on this board.
 
 ## Configuring parameters
 Wait for the board to reboot, connect to "N0CALL AP" WiFi network, password is: xxxxxxxxxx (10 times "x") and point your browser to "http://192.168.4.1" (http, not http*s*). Hover your mouse to textboxes to get useful hints.

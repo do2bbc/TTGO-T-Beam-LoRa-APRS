@@ -57,6 +57,7 @@
 #endif
 #ifdef ENABLE_WIFI
   #include "taskWebServer.h"
+  #include "axudp_v2.h"
 #endif
 
 // Enable verbose debug output, level 2 on compile (-D DEVELOPMENT_DEBUG via plaformio.ini) or by finetuning it here.
@@ -213,6 +214,9 @@ String aprsis_own_filters_words_in = "";
 String aprsis_callsign = "";
 String aprsis_password = "-1";
 uint8_t aprsis_data_allow_inet_to_rf = 0;  // 0: disable (default). 1: gate to main qrg. 2: gate to secondary qrg. 3: gate to both frequencies
+boolean dxlaprs_axudp_enabled = false;
+String dxlaprs_axudp_host = "nas.lan";
+uint16_t dxlaprs_axudp_port = 9103;
 extern void do_send_status_message_about_reboot_to_aprsis();
 extern void do_send_status_message_about_shutdown_to_aprsis();
 #else
@@ -2731,13 +2735,13 @@ void init_wifi_STA_and_AP_settings() {
       APs[apcnt].ssid[sizeof(APs[apcnt].ssid)-1] = 0;
       strncpy(APs[apcnt].pw, wifi_ModeSTA_PASS.c_str(), sizeof(APs[apcnt].pw)-1);
       APs[apcnt].pw[sizeof(APs[apcnt].pw)-1] = 0;
-      Serial.printf("Preferences AP %s found with PW '%s' and stored at pos %d\r\n", APs[apcnt].ssid, APs[apcnt].pw, apcnt);
+      Serial.printf("Preferences AP %s found and stored at pos %d\r\n", APs[apcnt].ssid, apcnt);
       apcnt = 1;
     }
 
     if (!preferences.getString(PREF_AP_PASSWORD, "").isEmpty()) {
       wifi_ModeAP_PASS = preferences.getString(PREF_AP_PASSWORD, "");
-      Serial.printf("Preferences Self-AP PW found '%s' and stored\r\n", wifi_ModeAP_PASS.c_str());
+      Serial.println("Preferences Self-AP password found and stored");
     }
 }
 #endif // ENABLE_WIFI
@@ -2892,10 +2896,10 @@ boolean readFile(fs::FS &fs, const char *filename) {
           APs[apcnt].ssid[sizeof(APs[apcnt].ssid)-1] = 0;
           strncpy(APs[apcnt].pw, wifi_password_old.c_str(), sizeof(APs[apcnt].pw)-1);
           APs[apcnt].pw[sizeof(APs[apcnt].pw)-1] = 0;
-          Serial.printf("readFile: wifi.cfg, old structure AP %s found with PW '%s' (%d)\r\n", APs[apcnt].ssid, APs[apcnt].pw,apcnt);
+          Serial.printf("readFile: wifi.cfg, old structure AP %s found (%d)\r\n", APs[apcnt].ssid, apcnt);
           apcnt++;
         } else {
-          Serial.printf("readFile: wifi.cfg, Preferences AP %s found with PW '%s' in wifi.cfg and not stored again\r\n", wifi_ModeSTA_SSID.c_str(), wifi_ModeSTA_PASS.c_str());
+          Serial.printf("readFile: wifi.cfg, Preferences AP %s found in wifi.cfg and not stored again\r\n", wifi_ModeSTA_SSID.c_str());
         }
       }
     }
@@ -2911,10 +2915,10 @@ boolean readFile(fs::FS &fs, const char *filename) {
         if (apcnt < MAX_AP_CNT && strcmp(wifi_ssid_old.c_str(), wifi_ModeSTA_SSID.c_str()) && strcmp(wifi_password_old.c_str(), wifi_ModeSTA_PASS.c_str())) {
           strncpy(APs[apcnt].ssid, wifi_ssid_old.c_str(), sizeof(APs[apcnt].ssid)-1);
           strncpy(APs[apcnt].pw, wifi_password_old.c_str(), sizeof(APs[apcnt].pw)-1);
-          Serial.printf("readFile: wifi.cfg, old structure AP %s found with PW '%s' (%d)\r\n", APs[apcnt].ssid, APs[apcnt].pw,apcnt);
+          Serial.printf("readFile: wifi.cfg, old structure AP %s found (%d)\r\n", APs[apcnt].ssid, apcnt);
           apcnt++;
         } else {
-          Serial.printf("readFile: wifi.cfg, Preferences AP %s found with PW '%s' in wifi.cfg and not stored again\r\n", wifi_ModeSTA_SSID.c_str(), wifi_ModeSTA_PASS.c_str());
+          Serial.printf("readFile: wifi.cfg, Preferences AP %s found in wifi.cfg and not stored again\r\n", wifi_ModeSTA_SSID.c_str());
         }
       }
     }
@@ -2925,7 +2929,7 @@ boolean readFile(fs::FS &fs, const char *filename) {
         String ap_password = String(p);
         if (ap_password.length() > 7) {
           wifi_ModeAP_PASS = String(ap_password);
-          Serial.printf("readFile: wifi.cfg, valid Self-AP PW to be used '%s'\r\n", wifi_ModeAP_PASS.c_str());
+          Serial.println("readFile: wifi.cfg, valid Self-AP password found");
         }
     }
 
@@ -2940,7 +2944,7 @@ boolean readFile(fs::FS &fs, const char *filename) {
 
           if (!sizeof(APs[apcnt].ssid) || (sizeof(APs[apcnt].pw > 0 &&  (sizeof(APs[apcnt].pw) < 8 || sizeof(APs[apcnt].pw) > 63))) || !strcmp(APs[apcnt].ssid, "EnterSSIDofYourAccesspoint") || !strcmp(APs[apcnt].ssid, "EnterSSIDofYour2ndAccesspoint")) {
             delay(3000); // something is wrong, make sure, that msg is displayed
-            Serial.printf("readFile: SSID: %s missing or PW: '%s' < 8 Byte || > 63 Byte, Filesize: %d\r\n", APs[apcnt].ssid, APs[apcnt].pw, file.size());
+            Serial.printf("readFile: SSID: %s missing or password length invalid, Filesize: %d\r\n", APs[apcnt].ssid, file.size());
           } else {
             if (!apcnt) {
               // take first configured AP as active, if nothing has been found in flash
@@ -2957,14 +2961,14 @@ boolean readFile(fs::FS &fs, const char *filename) {
                 wifi_ModeSTA_PASS = String(APs[0].pw);
               }
             }
-            Serial.printf("readFile: wifi.cfg, valid AP %s found with PW '%s' (%d)\r\n", APs[apcnt].ssid, APs[apcnt].pw, apcnt);
+            Serial.printf("readFile: wifi.cfg, valid AP %s found (%d)\r\n", APs[apcnt].ssid, apcnt);
             apcnt++;
           }
         } else {
             if (wifi_ModeSTA_SSID == "")
               Serial.printf("readFile: wifi.cfg, No AP configured\r\n");
             else
-              Serial.printf("readFile: wifi.cfg, Preferences AP %s found with PW '%s' in wifi.cfg and not stored again\r\n", wifi_ModeSTA_SSID.c_str(), wifi_ModeSTA_PASS.c_str());
+              Serial.printf("readFile: wifi.cfg, Preferences AP %s found in wifi.cfg and not stored again\r\n", wifi_ModeSTA_SSID.c_str());
         }
         if (apcnt == MAX_AP_CNT) {
           Serial.printf("readFile: wifi.cfg, maximum Number of possible APs (%d) reached.\r\n", MAX_AP_CNT);
@@ -3377,6 +3381,11 @@ void load_preferences_cfg_file()
   preferences.putString(PREF_SYSLOG_SERVER, s);
   s = jsonElementFromPreferenceCFGString(PREF_NTP_SERVER,0);
   preferences.putString(PREF_NTP_SERVER, s);
+  dxlaprs_axudp_enabled = jsonElementFromPreferenceCFGBool(PREF_DXLAPRS_AXUDP_ENABLE, PREF_DXLAPRS_AXUDP_ENABLE_INIT);
+  dxlaprs_axudp_host = jsonElementFromPreferenceCFGString(PREF_DXLAPRS_AXUDP_HOST, PREF_DXLAPRS_AXUDP_HOST_INIT);
+  if (dxlaprs_axudp_host.isEmpty()) dxlaprs_axudp_host = "nas.lan";
+  int axudp_port_from_cfg = jsonElementFromPreferenceCFGInt(PREF_DXLAPRS_AXUDP_PORT, PREF_DXLAPRS_AXUDP_PORT_INIT);
+  dxlaprs_axudp_port = (axudp_port_from_cfg >= 1 && axudp_port_from_cfg <= 65535) ? axudp_port_from_cfg : 9103;
   #if defined(ENABLE_SYSLOG)
     if (debug_verbose)
       syslog_log(LOG_DEBUG, String("FlashWrite preferences: load_preferences_cfg()"));
@@ -3976,6 +3985,30 @@ void load_preferences_from_flash()
 
 // APRSIS settings
 #ifdef ENABLE_WIFI
+    if (!preferences.getBool(PREF_DXLAPRS_AXUDP_ENABLE_INIT)) {
+      preferences.putBool(PREF_DXLAPRS_AXUDP_ENABLE_INIT, true);
+      preferences.putBool(PREF_DXLAPRS_AXUDP_ENABLE, dxlaprs_axudp_enabled);
+    }
+    dxlaprs_axudp_enabled = preferences.getBool(PREF_DXLAPRS_AXUDP_ENABLE, false);
+
+    if (!preferences.getBool(PREF_DXLAPRS_AXUDP_HOST_INIT)) {
+      preferences.putBool(PREF_DXLAPRS_AXUDP_HOST_INIT, true);
+      preferences.putString(PREF_DXLAPRS_AXUDP_HOST, dxlaprs_axudp_host);
+    }
+    dxlaprs_axudp_host = preferences.getString(PREF_DXLAPRS_AXUDP_HOST, "nas.lan");
+    if (dxlaprs_axudp_host.isEmpty()) dxlaprs_axudp_host = "nas.lan";
+
+    if (!preferences.getBool(PREF_DXLAPRS_AXUDP_PORT_INIT)) {
+      preferences.putBool(PREF_DXLAPRS_AXUDP_PORT_INIT, true);
+      preferences.putInt(PREF_DXLAPRS_AXUDP_PORT, dxlaprs_axudp_port);
+    }
+    int axudp_port_from_flash = preferences.getInt(PREF_DXLAPRS_AXUDP_PORT, 9103);
+    if (axudp_port_from_flash < 1 || axudp_port_from_flash > 65535) {
+      axudp_port_from_flash = 9103;
+      preferences.putInt(PREF_DXLAPRS_AXUDP_PORT, axudp_port_from_flash);
+    }
+    dxlaprs_axudp_port = axudp_port_from_flash;
+
     if (!preferences.getBool(PREF_APRSIS_EN_INIT)){
       preferences.putBool(PREF_APRSIS_EN_INIT, true);
       preferences.putBool(PREF_APRSIS_EN, aprsis_enabled);
@@ -4414,9 +4447,12 @@ void setup()
 
   #ifdef ENABLE_PREFERENCES
     int clear_preferences = 0;
+    #if !defined(T_BEAM_V1_2)
+    // GPIO38 reads low while released on this T-Beam, so ignore its boot-time reset gesture.
     if(digitalRead(BUTTON)==LOW){
       clear_preferences = 1;
     }
+    #endif
 
     preferences.begin("cfg", false);
 
@@ -7265,6 +7301,17 @@ out:
               (!digipeatedflag && ((lora_add_snr_rssi_to_path & FLAG_ADD_SNR_RSSI_FOR_APRSIS__ONLY_IF_HEARD_DIRECT) || user_demands_trace == 1)) )
             s = append_element_to_path(received_frame, rssi_for_path);
           send_to_aprsis(s ? String(s) : loraReceivedFrameString);
+        }
+
+        if (dxlaprs_axudp_enabled && WiFi.status() == WL_CONNECTED) {
+          static uint32_t last_axudp_error_log = 0;
+          if (!sendAxudpV2Frame(loraReceivedFrameString, lastRssi, lastSNR, dxlaprs_axudp_host, dxlaprs_axudp_port)) {
+            const uint32_t now = millis();
+            if (last_axudp_error_log == 0 || now - last_axudp_error_log >= 60000) {
+              do_serial_println(String("DXlaprs AXUDP v2: send failed to ") + dxlaprs_axudp_host + ":" + String(dxlaprs_axudp_port));
+              last_axudp_error_log = now;
+            }
+          }
         }
       #endif
 

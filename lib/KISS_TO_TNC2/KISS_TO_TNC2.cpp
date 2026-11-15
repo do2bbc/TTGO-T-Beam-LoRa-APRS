@@ -7,8 +7,6 @@ String decode_address_ax25(const String &ax25Address, bool &isLast, bool isRelay
 
 bool validateKISSFrame(const String &kissFormattedFrame);
 
-String decapsulateKISS(const String &frame);
-
 /*
  * https://ham.zmailer.org/oh2mqk/aprx/PROTOCOLS
 

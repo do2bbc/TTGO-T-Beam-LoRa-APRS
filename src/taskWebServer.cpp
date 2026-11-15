@@ -68,6 +68,9 @@ extern String to_aprsis_data;
 extern boolean aprsis_enabled;
 extern String aprsis_host;
 extern uint16_t aprsis_port;
+extern boolean dxlaprs_axudp_enabled;
+extern String dxlaprs_axudp_host;
+extern uint16_t dxlaprs_axudp_port;
 extern String aprsis_own_filters_in;
 extern boolean aprsis_own_filter_in_is_whitelist;
 extern String aprsis_own_filters_words_in;
@@ -351,7 +354,7 @@ void handle_SaveWifiCfg() {
     } else {
       // Update WiFi password
       preferences.putString(PREF_WIFI_PASSWORD, s);
-      do_serial_println("WiFi: Updated remote PASS: " + s);
+      do_serial_println("WiFi: Updated remote password");
     }
   }
   if (server.hasArg(PREF_WIFI_TXPWR_MODE_STA)) {
@@ -369,7 +372,7 @@ void handle_SaveWifiCfg() {
     // user has deleted both, WIFI_SSID and WIFI_PASS. Show ownly once
     if (preferences.getString(PREF_AP_PASSWORD) != "") {
       preferences.putString(PREF_AP_PASSWORD, "");
-      do_serial_println("WiFi: your AP password is now factory default: " + wifi_ModeAP_PASS_default);
+      do_serial_println("WiFi: your AP password is now factory default");
     }
   } else if (s != "*") {
     if (s.length() < 8 || s.length() > 63) {
@@ -378,7 +381,7 @@ void handle_SaveWifiCfg() {
     } else {
       // Update AP password
       preferences.putString(PREF_AP_PASSWORD, s);
-      do_serial_println("WiFi: Updated local AP PASS: " + s);
+      do_serial_println("WiFi: Updated local AP password");
     }
   }
   preferences.putBool(PREF_WIFI_STA_ALLOW_FAILBACK_TO_MODE_AP_AFTER_ONCE_CONNECTED,  server.hasArg(PREF_WIFI_STA_ALLOW_FAILBACK_TO_MODE_AP_AFTER_ONCE_CONNECTED));
@@ -474,6 +477,9 @@ void refill_preferences_as_jsonData()
   s = s + "\n  " +  jsonLineFromPreferenceInt(PREF_WIFI_TXPWR_MODE_STA);
   s = s + "\n  " +  jsonLineFromPreferenceBool(PREF_TNCSERVER_ENABLE);
   s = s + "\n  " +  jsonLineFromPreferenceBool(PREF_GPSSERVER_ENABLE);
+  s = s + "\n  " +  jsonLineFromPreferenceBool(PREF_DXLAPRS_AXUDP_ENABLE);
+  s = s + "\n  " +  jsonLineFromPreferenceString(PREF_DXLAPRS_AXUDP_HOST);
+  s = s + "\n  " +  jsonLineFromPreferenceInt(PREF_DXLAPRS_AXUDP_PORT);
   s = s + "\n  " +  jsonLineFromPreferenceString(PREF_NTP_SERVER);
   s = s + "\n  " +  jsonLineFromPreferenceString(PREF_SYSLOG_SERVER);
   s = s + "\n  " +  jsonLineFromPreferenceDouble(PREF_LORA_FREQ_PRESET);
@@ -963,6 +969,26 @@ void handle_SaveAPRSCfg() {
     syslog_log(LOG_INFO, String("WebServer: handle_SaveAPPRSCfg()"));
   #endif
   do_serial_println("WebServer: WebServer: handle_SaveAPRSCfg()");
+  const bool has_axudp_settings =
+    server.hasArg(PREF_DXLAPRS_AXUDP_HOST) ||
+    server.hasArg(PREF_DXLAPRS_AXUDP_PORT) ||
+    server.hasArg(PREF_DXLAPRS_AXUDP_ENABLE);
+  String axudp_host;
+  int axudp_port = 0;
+  const boolean axudp_enabled = server.hasArg(PREF_DXLAPRS_AXUDP_ENABLE);
+  if (has_axudp_settings) {
+    if (!server.hasArg(PREF_DXLAPRS_AXUDP_HOST) || !server.hasArg(PREF_DXLAPRS_AXUDP_PORT)) {
+      server.send(400, "text/plain", "AXUDP v2 needs a target host and UDP port.");
+      return;
+    }
+    axudp_host = server.arg(PREF_DXLAPRS_AXUDP_HOST);
+    axudp_host.trim();
+    axudp_port = server.arg(PREF_DXLAPRS_AXUDP_PORT).toInt();
+    if (axudp_host.isEmpty() || axudp_host.length() > 253 || axudp_port < 1 || axudp_port > 65535) {
+      server.send(400, "text/plain", "Invalid AXUDP v2 target host or UDP port.");
+      return;
+    }
+  }
   // LoRa settings
   if (server.hasArg(PREF_LORA_FREQ_PRESET)){
     preferences.putDouble(PREF_LORA_FREQ_PRESET, server.arg(PREF_LORA_FREQ_PRESET).toDouble());
@@ -1215,6 +1241,14 @@ void handle_SaveAPRSCfg() {
   }
 
   preferences.putBool(PREF_APRSIS_EN, server.hasArg(PREF_APRSIS_EN));
+  if (has_axudp_settings) {
+    preferences.putBool(PREF_DXLAPRS_AXUDP_ENABLE, axudp_enabled);
+    preferences.putString(PREF_DXLAPRS_AXUDP_HOST, axudp_host);
+    preferences.putInt(PREF_DXLAPRS_AXUDP_PORT, axudp_port);
+    dxlaprs_axudp_enabled = axudp_enabled;
+    dxlaprs_axudp_host = axudp_host;
+    dxlaprs_axudp_port = axudp_port;
+  }
   if (server.hasArg(PREF_APRSIS_SERVER_NAME)){
     String s = server.arg(PREF_APRSIS_SERVER_NAME);
     preferences.putString(PREF_APRSIS_SERVER_NAME, s);

@@ -559,6 +559,24 @@ III: Values above are referring to latitude; distance between two latitudes is a
                   </div>
                 </div>
                 <div class="grid-container full">
+                  <h5 class="u-full-width">DXLAPRS AXUDP v2</h5>
+                  <p class="u-full-width">Sends received LoRa frames directly to dxlAPRS over UDP. The AXUDP report carries LoRa RSSI in V and LoRa SNR in S.</p>
+                </div>
+                <div class="grid-container halves">
+                  <div>
+                    <label for="dxl_axudp">Enable direct DXlaprs output</label>
+                    <input name="dxl_axudp" id="dxl_axudp" type="checkbox" value="1" title="Send received LoRa APRS packets directly to a dxlAPRS AXUDP v2 UDP listener">
+                  </div>
+                  <div>
+                    <label for="dxl_axudp_host">DXlaprs host</label>
+                    <input type="text" name="dxl_axudp_host" id="dxl_axudp_host" placeholder="nas.lan" title="Hostname or IPv4 address of the dxlAPRS AXUDP v2 listener">
+                  </div>
+                  <div>
+                    <label for="dxl_axudp_port">DXlaprs UDP port</label>
+                    <input type="number" name="dxl_axudp_port" id="dxl_axudp_port" min="1" max="65535" placeholder="9103" title="UDP listener port on the dxlAPRS host">
+                  </div>
+                </div>
+                <div class="grid-container full">
                     <div>
                         <input class="button-primary u-full-width" type="submit" value="Save" title="save settings, remember reboot tracker after save">
                     </div>
