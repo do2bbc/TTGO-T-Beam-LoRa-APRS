@@ -6274,7 +6274,15 @@ void loop()
   }
 #endif
 
-  if (digitalRead(BUTTON) == LOW && button_key_up == true) {
+  #if defined(T_BEAM_V1_2)
+    // Ignore a low-at-boot input until the button has been observed released.
+    static bool button_available = false;
+    if (digitalRead(BUTTON) == HIGH) button_available = true;
+  #else
+    const bool button_available = true;
+  #endif
+
+  if (button_available && digitalRead(BUTTON) == LOW && button_key_up == true) {
     button_key_up = false;
     delay(50);
     Serial.println("Tracker: Button pressed...");
@@ -6728,7 +6736,7 @@ send_beacon:
     } // else: enabled_oled == false: never turn on. enabled_oled == true and oled_timer == 0L: recently turned off -> also no need to be turned on.
   }
 
-  if (digitalRead(BUTTON)==LOW && button_key_up == false && millis() >= button_time_delay && button_t_lock == false) {
+  if (button_available && digitalRead(BUTTON)==LOW && button_key_up == false && millis() >= button_time_delay && button_t_lock == false) {
     // enable OLED
     enableOled_now();
     button_down_count = 0;

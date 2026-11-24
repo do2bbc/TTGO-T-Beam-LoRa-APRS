@@ -33,6 +33,7 @@ After connection with APRX based DIGI it can be used as KISS-TNC
 
 ### long press while booting 
 * reset to factory default (disabled in the `ttgo-t-beam-v1_2` build because GPIO38 reads low while idle on the tested board)
+* On T-Beam v1.2, button actions after boot are enabled only after GPIO38 is first observed high; a permanently low input is ignored.
 
 ### long press: toggle on or off GPS power supply 
 * if the "FIXED_BEACON_EN" option is enabled in the configuration, a beacon will be sent every set time interval
